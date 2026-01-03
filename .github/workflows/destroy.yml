@@ -46,6 +46,27 @@ jobs:
           role-session-name: github-actions-destroy
           aws-region: ${{ secrets.DEFAULT_AWS_REGION }}
 
+      - name: Setup AWS Config for CI
+        run: |
+          # Create AWS config directory
+          mkdir -p ~/.aws
+          
+          # Create a minimal config that makes the 'jackson' profile work
+          # by pointing it to use default credentials (which are OIDC)
+          cat > ~/.aws/config << 'EOFCONFIG'
+          [default]
+          region = ${{ secrets.DEFAULT_AWS_REGION }}
+          
+          [profile jackson]
+          region = ${{ secrets.DEFAULT_AWS_REGION }}
+          # In CI, this profile will use the default credentials (OIDC)
+          # The credentials come from environment variables set by configure-aws-credentials
+          EOFCONFIG
+          
+          # Verify credentials work
+          aws sts get-caller-identity
+          echo "✅ AWS credentials configured for CI"
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
