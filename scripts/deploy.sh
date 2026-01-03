@@ -34,11 +34,22 @@ cd terraform
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --profile "$AWS_PROFILE" --query Account --output text)
 AWS_REGION=${DEFAULT_AWS_REGION:-us-east-1}
 
+# Detect the actual bucket region (bucket might be in a different region)
+BUCKET_NAME="twin-terraform-state-${AWS_ACCOUNT_ID}"
+BUCKET_REGION=$(aws s3api get-bucket-location --profile "$AWS_PROFILE" --bucket "$BUCKET_NAME" --query LocationConstraint --output text 2>/dev/null || echo "$AWS_REGION")
+
+# Handle 'None' response (us-east-1 returns None instead of the region name)
+if [ "$BUCKET_REGION" = "None" ] || [ -z "$BUCKET_REGION" ]; then
+  BUCKET_REGION="us-east-1"
+fi
+
 echo "🔧 Initializing Terraform with S3 backend..."
+echo "   Bucket: $BUCKET_NAME"
+echo "   Region: $BUCKET_REGION"
 terraform init -input=false \
-  -backend-config="bucket=twin-terraform-state-${AWS_ACCOUNT_ID}" \
+  -backend-config="bucket=${BUCKET_NAME}" \
   -backend-config="key=${ENVIRONMENT}/terraform.tfstate" \
-  -backend-config="region=${AWS_REGION}" \
+  -backend-config="region=${BUCKET_REGION}" \
   -backend-config="dynamodb_table=twin-terraform-locks" \
   -backend-config="encrypt=true"
 
