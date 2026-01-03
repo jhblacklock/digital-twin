@@ -62,22 +62,38 @@ jobs:
         run: |
           # Create AWS config directory
           mkdir -p ~/.aws
-          
-          # Create a minimal config that makes the 'jackson' profile work
-          # by pointing it to use default credentials (which are OIDC)
-          cat > ~/.aws/config << 'EOFCONFIG'
+
+          # Create a script that outputs credentials from environment variables
+          # This allows the jackson profile to use OIDC credentials
+          cat > /tmp/get-aws-creds.sh << 'EOFSCRIPT'
+          #!/bin/bash
+          # Output credentials in the format expected by credential_process
+          cat << EOF
+          {
+            "Version": 1,
+            "AccessKeyId": "$AWS_ACCESS_KEY_ID",
+            "SecretAccessKey": "$AWS_SECRET_ACCESS_KEY",
+            "SessionToken": "$AWS_SESSION_TOKEN"
+          }
+          EOF
+          EOFSCRIPT
+          chmod +x /tmp/get-aws-creds.sh
+
+          # Create config file with jackson profile using credential_process
+          cat > ~/.aws/config << EOFCONFIG
           [default]
           region = ${{ secrets.DEFAULT_AWS_REGION }}
-          
+
           [profile jackson]
           region = ${{ secrets.DEFAULT_AWS_REGION }}
-          # In CI, this profile will use the default credentials (OIDC)
-          # The credentials come from environment variables set by configure-aws-credentials
+          credential_process = /tmp/get-aws-creds.sh
           EOFCONFIG
-          
-          # Verify credentials work
+
+          # Verify credentials work with default
           aws sts get-caller-identity
-          echo "✅ AWS credentials configured for CI"
+          # Verify credentials work with jackson profile
+          aws sts get-caller-identity --profile jackson
+          echo "✅ AWS credentials configured for CI (both default and jackson profile)"
 
       - name: Run Deployment Script
         run: |
