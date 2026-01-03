@@ -1,8 +1,9 @@
 name: Deploy Digital Twin
 
 on:
-  push:
-    branches: [main]
+  # Temporarily disabled - uncomment below to re-enable push trigger
+  # push:
+  #   branches: [main]
   workflow_dispatch:
     inputs:
       environment:
@@ -24,6 +25,8 @@ jobs:
     name: Deploy to ${{ github.event.inputs.environment || 'dev' }}
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'dev' }}
+    # Temporarily disabled - set to 'true' to re-enable
+    if: false
 
     steps:
       - name: Checkout code
